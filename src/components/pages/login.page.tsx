@@ -77,7 +77,7 @@ const Login = (): JSX.Element => {
     type: ControlType.Button,
     props: {
       id: "some-id",
-      text: "Button text",
+      text: "Enter private zone",
       type: ButtonType.Submit,
     },
   };
@@ -87,7 +87,7 @@ const Login = (): JSX.Element => {
       try {
         await LoginService.instance.login(
           data[LoginFields.Email],
-          data[LoginFields.Password],
+          data[LoginFields.Password]
         );
       } catch (error: any) {
         setIsLoading(false);

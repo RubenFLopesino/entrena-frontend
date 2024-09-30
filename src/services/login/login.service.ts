@@ -11,8 +11,6 @@ interface LoginResponse {
 export const emitterKey = "isAuthenticated";
 
 export class LoginService extends EventEmitter {
-  private static _isAuthenticated: boolean = false;
-
   private static _instance: LoginService;
 
   private baseURL = "/login";
@@ -29,17 +27,12 @@ export class LoginService extends EventEmitter {
       >({ email, password }, this.baseURL);
       if (response.status === 200) {
         const { token } = response;
-        const decodedToken = jwtDecode<JwtPayload>(response.token);
-        const expiresIn = decodedToken.exp! - Math.floor(Date.now() / 1000);
         StorageService.setItem(
           process.env["REACT_APP_BASE_TOKEN_KEY"] as string,
-          token,
+          token
         );
-        LoginService._isAuthenticated = true;
         this.emit(emitterKey);
-        this.setSessionTime(expiresIn);
       }
-
       return response;
     } catch (error) {
       console.error("Error during login: ", error);
@@ -49,9 +42,8 @@ export class LoginService extends EventEmitter {
 
   logout() {
     StorageService.removeItem(
-      process.env["REACT_APP_BASE_TOKEN_KEY"] as string,
+      process.env["REACT_APP_BASE_TOKEN_KEY"] as string
     );
-    LoginService._isAuthenticated = false;
     this.emit(emitterKey);
   }
 
@@ -61,7 +53,22 @@ export class LoginService extends EventEmitter {
   }
 
   get isAuthenticated(): boolean {
-    return LoginService._isAuthenticated;
+    const token = StorageService.getItem(
+      process.env["REACT_APP_BASE_TOKEN_KEY"] as string
+    );
+    if (token) {
+      const decodedToken = jwtDecode<JwtPayload>(token);
+      console.log(
+        decodedToken.exp && decodedToken.exp * 1000 < new Date().getTime()
+      );
+      if (decodedToken.exp && decodedToken.exp * 1000 > new Date().getTime()) {
+        this.setSessionTime(decodedToken.exp! - Math.floor(Date.now() / 1000));
+        return true;
+      }
+      this.logout();
+      return false;
+    }
+    return false;
   }
 
   private setSessionTime(expiresIn: number) {
