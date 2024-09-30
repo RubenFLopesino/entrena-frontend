@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MailService } from "../../services/mailer/mailer.service";
 
 interface Attempts {
@@ -7,10 +7,26 @@ interface Attempts {
 }
 
 const useLoginAttemptsTracker = (userEmail: string): [() => void] => {
-  const state = useState<Attempts | undefined>(undefined);
-  const setAttempts = state.pop() as Dispatch<
-    SetStateAction<Attempts | undefined>
-  >;
+  const [state, setAttempts] = useState<Attempts | undefined>(undefined);
+
+  const sendAlertEmail = useCallback(async () => {
+    try {
+      const response = await MailService.instance.sendMail<{
+        message: string;
+      }>(
+        userEmail,
+        "Alert: Failed Login Attempts",
+        `There have been 3 failed login attempts associated with the admin email: ${userEmail}.`
+      );
+      alert(response.message);
+    } catch (error) {
+      alert("Failed to send alert email.");
+    }
+  }, [userEmail]);
+
+  useEffect(() => {
+    if (state?.attempts && state.attempts >= 3) sendAlertEmail();
+  }, [sendAlertEmail, state?.attempts]);
 
   const trackAttempt = (): void => {
     const oneMinute = 60 * 1000;
@@ -29,8 +45,6 @@ const useLoginAttemptsTracker = (userEmail: string): [() => void] => {
 
         const newAttempts = currentAttempts.attempts++;
 
-        if (newAttempts >= 3) sendAlertEmail();
-
         return {
           ...currentAttempts,
           attempts: newAttempts,
@@ -43,22 +57,6 @@ const useLoginAttemptsTracker = (userEmail: string): [() => void] => {
       };
     });
   };
-
-  const sendAlertEmail = async () => {
-    try {
-      const response = await MailService.instance.sendMail<{
-        message: string;
-      }>(
-        userEmail,
-        "Alert: Failed Login Attempts",
-        `There have been 3 failed login attempts associated with the admin email: ${userEmail}.`,
-      );
-      alert(response.message);
-    } catch (error) {
-      alert("Failed to send alert email.");
-    }
-  };
-
   return [trackAttempt];
 };
 
